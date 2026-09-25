@@ -6,7 +6,7 @@ export default function BookControls() {
         <span className="count" id="count" aria-live="polite">ปก</span>
         <button id="next" type="button" aria-label="หน้าถัดไป">พลิก ›</button>
       </nav>
-      <p className="hint">แตะที่หน้ากระดาษ ปัดซ้าย–ขวา หรือกดลูกศรบนคีย์บอร์ดเพื่อพลิก</p>
+      <p className="hint">แตะหรือลากหน้ากระดาษเพื่อพลิก ปล่อยก่อนครึ่งทางเพื่อคืนหน้า หรือใช้ปุ่มลูกศร</p>
     </>
   );
 }

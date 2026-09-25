@@ -1,5 +1,6 @@
 import { BUCKETS, DOODLES, NAMES, NOTE_COLORS, TILE_COLORS } from './bookData.js';
 import { PAGE_COUNT, PAGE_META } from './pageManifest.js';
+import { createPageCurl } from './pageCurl.js';
 
 const PAPERS = ['#fbd9c6', '#fbeaa9', '#f8d0dc', '#e0d5f3', '#fcdcb2', '#d5ecd9', '#f6c9c0', '#fde5c8'];
 const rot = (i) => (((i * 37) % 9) - 4) * 0.9;
@@ -95,10 +96,6 @@ function preparePage(page, index) {
   });
 }
 
-function delay(duration) {
-  return new Promise((resolve) => window.setTimeout(resolve, duration));
-}
-
 export async function initializeBook({ pageLoaders }) {
   const pagesHolder = document.getElementById('pages');
   const stage = document.getElementById('stage');
@@ -112,7 +109,11 @@ export async function initializeBook({ pageLoaders }) {
   let leaves = [];
   let singleFace = null;
   let busy = false;
-  let touchStartX = null;
+  let gesture = null;
+  let activeTurn = null;
+  let frame = 0;
+  let disposed = false;
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let activeScenePages = new Set();
 
   function createScenePage(page) {
@@ -232,7 +233,6 @@ export async function initializeBook({ pageLoaders }) {
       const back = document.createElement('div');
       back.className = 'face back';
       leaf.append(front, back);
-      leaf.addEventListener('click', () => go(leaf.classList.contains('turned') ? -1 : 1));
       book.appendChild(leaf);
       leaves.push(leaf);
     }
@@ -265,89 +265,121 @@ export async function initializeBook({ pageLoaders }) {
     singleFace.className = 'face';
     wrap.appendChild(singleFace);
     stage.appendChild(wrap);
-    wrap.addEventListener('click', (event) => {
-      const bounds = wrap.getBoundingClientRect();
-      go(event.clientX < bounds.left + bounds.width * 0.3 ? -1 : 1);
-    });
     showSingle();
   }
 
-  async function go(direction) {
-    if (busy) return;
+  function finishTurn(turn, commit) {
+    if (activeTurn !== turn) return;
+    cancelAnimationFrame(frame);
+    turn.curl?.remove();
+    if (commit) state += turn.direction;
+    if (mode === 'book') {
+      turn.source.classList.toggle('turned', state > turn.leafIndex);
+      turn.source.classList.remove('curl-source');
+      layoutBook();
+      turn.book.style.removeProperty('transform');
+      turn.book.style.removeProperty('transition');
+    } else {
+      if (commit) {
+        turn.source.remove();
+        singleFace = turn.incoming;
+        playPageScene(singleFace.firstElementChild);
+        activeScenePages = new Set([state]);
+      } else {
+        turn.incoming.remove();
+        turn.source.classList.remove('curl-source');
+      }
+    }
+    activeTurn = null;
+    busy = false;
+    stage.classList.remove('is-turning');
+    refresh();
+    if (!disposed) void pickMode();
+  }
+
+  function settleTurn(turn, commit) {
+    if (activeTurn !== turn || turn.settling) return;
+    turn.settling = true;
+    const from = turn.progress;
+    const to = commit ? 1 : 0;
+    const vertical = turn.vertical;
+    const started = performance.now();
+    const duration = reducedMotion.matches ? 0 : (commit ? 760 : 420) * Math.max(.4, Math.abs(to - from));
+    function tick(now) {
+      if (disposed || activeTurn !== turn) return;
+      const time = duration ? Math.min(1, (now - started) / duration) : 1;
+      const eased = 1 - Math.pow(1 - time, 3);
+      turn.progress = from + (to - from) * eased;
+      turn.curl?.render(turn.progress, vertical * (1 - eased));
+      if (time < 1) frame = requestAnimationFrame(tick);
+      else finishTurn(turn, commit);
+    }
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(tick);
+  }
+
+  function followGesture(turn, drag) {
+    const distance = -turn.direction * (drag.x - drag.startX);
+    turn.progress = Math.max(.015, Math.min(.98, distance / (turn.bounds.width * 2)));
+    turn.vertical = drag.y - drag.startY;
+    turn.curl?.render(turn.progress, turn.vertical);
+    if (drag.ended) {
+      const flick = distance > 45 && -turn.direction * drag.velocity > .45;
+      settleTurn(turn, !drag.cancelled && (!drag.moved || turn.progress > .23 || flick));
+    }
+  }
+
+  async function go(direction, drag = null) {
+    if (busy || disposed) return;
     const next = state + direction;
     if (next < 0 || next > maxState()) return;
     busy = true;
     refresh();
+    let incoming;
     try {
-      if (mode === 'book') {
-        const requiredPages = [];
-        if (next > 0) requiredPages.push(next * 2 - 1);
-        if (next < leaves.length) requiredPages.push(next * 2);
-        await Promise.all(requiredPages.map(ensurePage));
-        const leaf = direction > 0 ? leaves[state] : leaves[state - 1];
-        const previousState = state;
-        leaf.style.zIndex = 200;
-        leaf.classList.toggle('turned', direction > 0);
-        state = next;
-        leaves.forEach((item, index) =>
-          item.classList.toggle('active', index === state || index === state - 1 ||
-            index === previousState || index === previousState - 1),
-        );
-        const book = stage.querySelector('.book');
-        book.classList.toggle('closed-front', state === 0);
-        book.classList.toggle('closed-back', state === leaves.length);
-        refresh();
-        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-        // Let the paper reveal the prepared scene, then play while it settles.
-        await delay(reducedMotion ? 0 : 400);
-        requiredPages.forEach((index) => {
-          const face = index % 2 === 0 ? '.face.front' : '.face.back';
-          playPageScene(leaves[Math.floor(index / 2)]?.querySelector(`${face} .pg`));
-        });
-        await delay(reducedMotion ? 0 : 450);
-        layoutBook();
-      } else {
-        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-        // Load before moving the sheet, so a slow chunk never leaves a blank book.
-        const page = await ensurePage(next);
-        const outgoing = singleFace;
-        const incoming = document.createElement('div');
-        incoming.className = 'face';
-        incoming.appendChild(createScenePage(page));
-        outgoing.parentElement.appendChild(incoming);
-        outgoing.setAttribute('aria-hidden', 'true');
-        outgoing.style.pointerEvents = 'none';
-        const turning = direction > 0 ? outgoing : incoming;
-        outgoing.style.zIndex = direction > 0 ? '2' : '1';
-        incoming.style.zIndex = direction > 0 ? '1' : '2';
-        state = next;
-        singleFace = incoming;
-        activeScenePages = new Set([state]);
-        if (reducedMotion) {
-          outgoing.remove();
-          playPageScene(incoming.firstElementChild);
-        } else {
-          // Forward lifts the current sheet; backward lays the previous sheet down.
-          // The other page remains flat beneath it throughout the same motion.
-          turning.classList.add('turning-sheet');
-          const poses = [{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(-100deg)' }];
-          const turn = turning.animate(direction > 0 ? poses : [...poses].reverse(), {
-            duration: 680,
-            easing: 'cubic-bezier(.32,.05,.22,1)',
-            fill: 'both',
-          });
-          await delay(220);
-          playPageScene(incoming.firstElementChild);
-          await turn.finished;
-          outgoing.remove();
-          turn.cancel();
-          incoming.classList.remove('turning-sheet');
-        }
-        incoming.style.removeProperty('z-index');
+      const requiredPages = mode === 'book'
+        ? [next * 2 - 1, next * 2, direction > 0 ? state * 2 : state * 2 - 1]
+        : [next];
+      await Promise.all(requiredPages.map(ensurePage));
+      if (disposed) return;
+      const leafIndex = direction > 0 ? state : state - 1;
+      const source = mode === 'book' ? leaves[leafIndex] : singleFace;
+      const book = mode === 'book' ? stage.querySelector('.book') : null;
+      if (book) {
+        // A second turn can begin while a closed cover is still centering.
+        // Hold the binding still so its paper stays attached during the drag.
+        book.style.transform = getComputedStyle(book).transform;
+        book.style.transition = 'none';
       }
-    } finally {
-      busy = false;
-      refresh();
+      const face = mode === 'book' ? source.querySelector(direction > 0 ? '.front' : '.back') : source;
+      const back = mode === 'book' ? source.querySelector(direction > 0 ? '.back .pg' : '.front .pg') : null;
+      const bounds = face.getBoundingClientRect();
+      if (mode === 'single') {
+        incoming = document.createElement('div');
+        incoming.className = 'face';
+        incoming.appendChild(createScenePage(pages[next]));
+        source.parentElement.insertBefore(incoming, source);
+      }
+      const turn = { source, incoming, book, leafIndex, direction, bounds, progress: 0, vertical: 0 };
+      activeTurn = turn;
+      if (!reducedMotion.matches) {
+        turn.curl = createPageCurl({
+          stage, front: face.querySelector('.pg'), back, bounds, direction,
+          touchY: drag ? drag.startY - bounds.top : bounds.height * .8,
+        });
+        source.classList.add('curl-source');
+      }
+      stage.classList.add('is-turning');
+      if (drag) followGesture(turn, drag);
+      else settleTurn(turn, true);
+    } catch (error) {
+      console.error('Could not turn the page:', error);
+      if (activeTurn) finishTurn(activeTurn, false);
+      else {
+        incoming?.remove();
+        busy = false;
+        refresh();
+      }
     }
   }
 
@@ -373,15 +405,79 @@ export async function initializeBook({ pageLoaders }) {
   const handlePrev = () => go(-1);
   const handleNext = () => go(1);
   const handleKey = (event) => {
-    if (event.key === 'ArrowRight') go(1);
-    if (event.key === 'ArrowLeft') go(-1);
+    if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+    if (event.key === 'Escape' && activeTurn && !activeTurn.settling) {
+      if (gesture) gesture.cancelled = true;
+      settleTurn(activeTurn, false);
+    }
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      go(event.key === 'ArrowRight' ? 1 : -1);
+    }
   };
-  const handleTouchStart = (event) => { touchStartX = event.touches[0].clientX; };
-  const handleTouchEnd = (event) => {
-    if (touchStartX === null) return;
-    const delta = event.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(delta) > 40) go(delta < 0 ? 1 : -1);
-    touchStartX = null;
+  const handlePointerDown = (event) => {
+    if (busy || gesture || !event.isPrimary || event.button !== 0 ||
+        event.target.closest('a, button, input, textarea, select')) return;
+    const face = event.target.closest('.face');
+    if (!face) return;
+    const bounds = face.getBoundingClientRect();
+    const direction = mode === 'book'
+      ? (face.closest('.leaf').classList.contains('turned') ? -1 : 1)
+      : (event.clientX < bounds.left + bounds.width * .3 ? -1 : 1);
+    gesture = {
+      id: event.pointerId, direction, startX: event.clientX, startY: event.clientY,
+      x: event.clientX, y: event.clientY, time: event.timeStamp, velocity: 0, moved: false, started: false,
+    };
+    stage.setPointerCapture(event.pointerId);
+    // A held touch gently lifts the paper even before the reader starts dragging.
+    gesture.timer = window.setTimeout(() => {
+      if (!gesture || gesture.started) return;
+      gesture.started = true;
+      void go(gesture.direction, gesture);
+    }, 100);
+  };
+  const handlePointerMove = (event) => {
+    const drag = gesture;
+    if (!drag || drag.id !== event.pointerId || drag.ended) return;
+    drag.velocity = (event.clientX - drag.x) / Math.max(1, event.timeStamp - drag.time);
+    drag.time = event.timeStamp;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > 6) drag.moved = true;
+    if (!drag.started && drag.moved) {
+      clearTimeout(drag.timer);
+      if (mode === 'single') drag.direction = drag.x < drag.startX ? 1 : -1;
+      drag.started = true;
+      void go(drag.direction, drag);
+    }
+    if (activeTurn && !activeTurn.settling) {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (activeTurn && !activeTurn.settling) followGesture(activeTurn, drag);
+      });
+    }
+  };
+  const handlePointerEnd = (event) => {
+    const drag = gesture;
+    if (!drag || drag.id !== event.pointerId) return;
+    clearTimeout(drag.timer);
+    drag.ended = true;
+    drag.cancelled ||= event.type !== 'pointerup';
+    if (event.timeStamp - drag.time > 100) drag.velocity = 0;
+    gesture = null;
+    if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+    if (!drag.started && !drag.cancelled) void go(drag.direction, drag);
+    else if (activeTurn && !activeTurn.settling) followGesture(activeTurn, drag);
+  };
+  const handleResize = () => {
+    if (gesture) {
+      clearTimeout(gesture.timer);
+      gesture.cancelled = true;
+      gesture.ended = true;
+      gesture = null;
+    }
+    if (activeTurn) finishTurn(activeTurn, false);
+    else void pickMode();
   };
 
   await Promise.all([ensurePage(0), ensurePage(1)]);
@@ -391,17 +487,27 @@ export async function initializeBook({ pageLoaders }) {
   prevButton.addEventListener('click', handlePrev);
   nextButton.addEventListener('click', handleNext);
   document.addEventListener('keydown', handleKey);
-  stage.addEventListener('touchstart', handleTouchStart, { passive: true });
-  stage.addEventListener('touchend', handleTouchEnd);
-  window.addEventListener('resize', pickMode);
+  stage.addEventListener('pointerdown', handlePointerDown);
+  stage.addEventListener('pointermove', handlePointerMove);
+  stage.addEventListener('pointerup', handlePointerEnd);
+  stage.addEventListener('pointercancel', handlePointerEnd);
+  stage.addEventListener('lostpointercapture', handlePointerEnd);
+  window.addEventListener('resize', handleResize);
   refresh();
 
   return () => {
+    disposed = true;
+    clearTimeout(gesture?.timer);
+    cancelAnimationFrame(frame);
+    activeTurn?.curl?.remove();
     prevButton.removeEventListener('click', handlePrev);
     nextButton.removeEventListener('click', handleNext);
     document.removeEventListener('keydown', handleKey);
-    stage.removeEventListener('touchstart', handleTouchStart);
-    stage.removeEventListener('touchend', handleTouchEnd);
-    window.removeEventListener('resize', pickMode);
+    stage.removeEventListener('pointerdown', handlePointerDown);
+    stage.removeEventListener('pointermove', handlePointerMove);
+    stage.removeEventListener('pointerup', handlePointerEnd);
+    stage.removeEventListener('pointercancel', handlePointerEnd);
+    stage.removeEventListener('lostpointercapture', handlePointerEnd);
+    window.removeEventListener('resize', handleResize);
   };
 }

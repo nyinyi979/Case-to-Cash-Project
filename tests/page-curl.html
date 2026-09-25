@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Page curl browser checks</title>
+<style>
+body { margin: 16px; font: 15px system-ui; background: #ede8df; color: #302a25; }
+button { padding: 10px 14px; margin: 0 8px 8px 0; }
+iframe { display: block; height: 620px; border: 1px solid #bcb2a5; max-width: 100%; }
+#results { white-space: pre-wrap; }
+</style>
+<h1>Page curl browser checks</h1>
+<button id="run">Run desktop and mobile checks</button>
+<button id="preview">Hold a diagonal curl</button>
+<button id="release">Release the curl</button>
+<div id="results" role="status">Ready</div>
+<iframe id="app" title="Sketchbook test preview" style="width:1100px" src="/"></iframe>
+<script type="module" src="./page-curl.js"></script>
+</html>

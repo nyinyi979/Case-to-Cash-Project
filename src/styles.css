@@ -1654,3 +1654,53 @@ body {
   }
 }
 .cover-title .cover-title-line { margin-inline: auto; }
+
+/* A touch-led cylindrical fold, rendered above the resting page stack. */
+.stage { position: relative; }
+.book.closed-front::before { left: 50%; }
+.book.closed-back::before { right: 50%; }
+.book, .single {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.book img, .single img { -webkit-user-drag: none; }
+.leaf { transition: none; }
+.leaf.active, .single { cursor: grab; }
+.stage.is-turning, .stage.is-turning * { cursor: grabbing; }
+.curl-source { visibility: hidden; }
+.paper-curl {
+  position: absolute;
+  z-index: 500;
+  pointer-events: none;
+  transform: translateZ(1px);
+  isolation: isolate;
+}
+.paper-curl .curl-panel {
+  transform-origin: 0 0;
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
+  box-shadow: none;
+  border-radius: 0;
+  transform: none;
+  will-change: transform, clip-path;
+}
+.curl-panel::after { display: none; }
+.curl-panel .pg { border-radius: 3px; }
+.curl-panel *, .curl-panel *::before, .curl-panel *::after {
+  animation-play-state: paused !important;
+}
+.curl-light {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.curl-blank {
+  background: var(--paper);
+  background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(111,87,57,.035) 3px 4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .book { transition: none; }
+}
