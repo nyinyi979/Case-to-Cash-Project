@@ -1,0 +1,1 @@
+export default "<section data-k=\"p3\" class=\"pg\">\n  <span class=\"eyebrow\">กำแพงไอเดีย</span>\n  <h3>ตอนแรกมันกระจัดกระจายแบบนี้</h3>\n  <div class=\"cork\"><div class=\"wall\" id=\"wall\"></div></div>\n  <span class=\"folio\">3</span>\n</section>";

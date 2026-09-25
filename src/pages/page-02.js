@@ -1,0 +1,1 @@
+export default "<section class=\"pg endpaper\">\n  <div class=\"stamp\">\n    <b>Project ของทีมเราทำอะไรนะ</b>\n    <div class=\"line\"></div>\n    <span style=\"font-family:Sriracha,cursive;font-size:3.6cqi;color:var(--ink)\">ลองเปิดสมุดดูสิ →</span>\n  </div>\n</section>";
