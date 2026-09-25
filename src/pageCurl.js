@@ -58,6 +58,12 @@ export function createPageCurl({ stage, front, back, bounds, direction, touchY }
   const anchor = { x: direction > 0 ? width : 0, y: clamp(touchY, 0, height) };
   const frontArtwork = freezeArtwork(front);
   const backArtwork = freezeArtwork(back);
+  const shadow = document.createElement('div');
+  shadow.className = 'curl-cast-shadow';
+  const shadowBand = document.createElement('div');
+  shadowBand.className = 'curl-shadow-band';
+  shadow.appendChild(shadowBand);
+  sheet.appendChild(shadow);
   function panel(isBack, shade = 0) {
     const element = document.createElement('div');
     element.className = `curl-panel face ${isBack ? 'back' : 'front'}`;
@@ -75,7 +81,8 @@ export function createPageCurl({ stage, front, back, bounds, direction, touchY }
   }
   const flat = panel(false);
   const folded = panel(true, .035);
-  const stripCount = 12;
+  // Full-page DOM copies are costly, especially for illustrated SVG pages.
+  const stripCount = width < 400 ? 4 : 6;
   const strips = Array.from({ length: stripCount }, (_, index) => {
     const theta = (index + .5) / stripCount * Math.PI;
     return panel(index >= stripCount / 2, .19 * Math.sin(theta) - .12 * Math.cos(theta));
@@ -111,7 +118,12 @@ export function createPageCurl({ stage, front, back, bounds, direction, touchY }
       strip.style.transform = transform(scale, start + radius * Math.sin(theta) - scale * center);
       strip.style.visibility = radius < .1 ? 'hidden' : 'visible';
     });
-    sheet.style.filter = `drop-shadow(${direction * -radius * .22}px ${radius * .32}px ${radius * .5}px rgba(46,32,22,${.12 + .16 * Math.sin(Math.PI * p)}))`;
+    // A small gradient at the crease avoids filtering the whole moving sheet.
+    const extent = width + height;
+    shadowBand.style.width = `${Math.max(1, radius * 2)}px`;
+    shadowBand.style.height = `${extent * 2}px`;
+    shadowBand.style.transform = `matrix(${normal.x},${normal.y},${-normal.y},${normal.x},${normal.x * start + normal.y * extent},${normal.y * start - normal.x * extent})`;
+    shadow.style.opacity = Math.sin(Math.PI * p);
   }
   render(0);
   return { render, remove: () => sheet.remove() };

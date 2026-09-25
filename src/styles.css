@@ -869,13 +869,13 @@ body {
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8'%3E%3Cpath d='M2 5 Q10 1 18 5 T34 5 T50 5 T66 5 T82 5 T98 5 T118 5' fill='none' stroke='%23e8577a' stroke-width='2.4' stroke-linecap='round' opacity='.75'/%3E%3C/svg%3E")
     left bottom / 26cqi 1.8cqi no-repeat;
 }
-@media (prefers-reduced-motion: reduce) {
-  .leaf,
-  .book,
-  .single .face {
+:root[data-motion="none"] .leaf,
+:root[data-motion="none"] .book,
+:root[data-motion="none"] .single .face {
     transition: none;
   }
-}
+
+
 
 body {
   margin: 0;
@@ -990,11 +990,11 @@ body {
     background: radial-gradient(ellipse at 50% 25%, #eee8df, #d9d0c4);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .controls button {
+:root[data-motion="none"] .controls button {
     transition: none;
   }
-}
+
+
 
 /* Use the whole viewport for the reading surface. */
 html,
@@ -1171,14 +1171,14 @@ body {
 .tile-row .tile:nth-child(3n) {
   animation-delay: -1.3s;
 }
-@media (prefers-reduced-motion: reduce) {
-  .stk use,
-  .doodle use,
-  .wic-crowd > g:first-of-type,
-  .tile-row .tile {
+:root[data-motion="none"] .stk use,
+:root[data-motion="none"] .doodle use,
+:root[data-motion="none"] .wic-crowd > g:first-of-type,
+:root[data-motion="none"] .tile-row .tile {
     animation: none !important;
   }
-}
+
+
 .stk use,
 .doodle use {
   transform-box: fill-box;
@@ -1199,15 +1199,15 @@ body {
 .polaroid:nth-of-type(2n) {
   animation-delay: -3.8s;
 }
-@media (prefers-reduced-motion: reduce) {
-  .stk use,
-  .doodle use,
-  .wic-crowd > g:first-of-type,
-  .tile-row .tile,
-  .polaroid {
+:root[data-motion="none"] .stk use,
+:root[data-motion="none"] .doodle use,
+:root[data-motion="none"] .wic-crowd > g:first-of-type,
+:root[data-motion="none"] .tile-row .tile,
+:root[data-motion="none"] .polaroid {
     animation: none !important;
   }
-}
+
+
 
 /* On folio 5, let the two conversation figures gently sway and the group respond. */
 @keyframes page-five-sway {
@@ -1245,13 +1245,13 @@ body {
   transform-origin: center bottom;
   animation: page-five-cheer 4.2s ease-in-out infinite;
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg[data-k="p5"] .art > g:has(> g.cr > circle[cx="112"]),
-  .pg[data-k="p5"] .art > g:has(> g.cr > circle[cx="208"]),
-  .pg[data-k="p5"] .art > g.cr {
+:root[data-motion="none"] .pg[data-k="p5"] .art > g:has(> g.cr > circle[cx="112"]),
+:root[data-motion="none"] .pg[data-k="p5"] .art > g:has(> g.cr > circle[cx="208"]),
+:root[data-motion="none"] .pg[data-k="p5"] .art > g.cr {
     animation: none !important;
   }
-}
+
+
 
 /* Keep hidden leaves still; animate only the spread the reader can see. */
 .leaf:not(.active) .pg *,
@@ -1316,14 +1316,14 @@ body {
     transform: rotateY(-24deg);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .loading-book i {
+:root[data-motion="none"] .loading-book i {
     animation: none;
   }
-  .loading-screen {
+:root[data-motion="none"] .loading-screen {
     transition: none;
   }
-}
+
+
 
 /* Folio 5: curtain, speakers, then a small wave of audience cheers. */
 @keyframes curtain-left-open {
@@ -1380,15 +1380,15 @@ body {
   transform-origin: center;
   animation: sticker-twinkle 3.8s ease-in-out infinite;
 }
-@media (prefers-reduced-motion: reduce) {
-  .pg[data-k="p5"] .page-five-audience { opacity: 1; visibility: visible; transform: none; animation: none !important; }
-  .pg[data-k="p5"].scene-play .curtain-left { transform: translateX(-105%); animation: none !important; }
-  .pg[data-k="p5"].scene-play .curtain-right { transform: translateX(105%); animation: none !important; }
-  .pg[data-k="p5"].scene-play .art > g:has(> g.cr > circle[cx="112"]),
-  .pg[data-k="p5"].scene-play .art > g:has(> g.cr > circle[cx="208"]) {
+:root[data-motion="none"] .pg[data-k="p5"] .page-five-audience { opacity: 1; visibility: visible; transform: none; animation: none !important; }
+:root[data-motion="none"] .pg[data-k="p5"].scene-play .curtain-left { transform: translateX(-105%); animation: none !important; }
+:root[data-motion="none"] .pg[data-k="p5"].scene-play .curtain-right { transform: translateX(105%); animation: none !important; }
+:root[data-motion="none"] .pg[data-k="p5"].scene-play .art > g:has(> g.cr > circle[cx="112"]),
+:root[data-motion="none"] .pg[data-k="p5"].scene-play .art > g:has(> g.cr > circle[cx="208"]) {
     opacity: 1; visibility: visible; transform: none; animation: none !important;
   }
-}
+
+
 
 /* More convincing paper, rounded corners, and a bound page block. */
 .face.front { border-radius: 3px 9px 9px 3px; }
@@ -1626,25 +1626,24 @@ body {
 .endpaper.scene-play .stamp {
   animation: name-tag-pop .58s cubic-bezier(.2,.8,.25,1) both;
 }
-@media (prefers-reduced-motion: reduce) {
-  .cover.scene-play .cover-title-line,
-  .cover.scene-play .cover-title-line::after,
-  .pg[data-k="p1"].scene-play .stk use[href="#s-bulb"],
-  .pg[data-k="p2"].scene-play .tile-row[data-tiles="51"] .tile,
-  .pg[data-k="p3"].scene-play .wall .note,
-  .pg[data-k="p4"].scene-play .buckets > .bk,
-  .pg[data-k="p7"].scene-play .qs > .q,
-  .titlepage.scene-play .nametags > .nametag,
-  .pg[data-k="p6"].scene-play .art,
-  .pg[data-k="p8"].scene-play .callout,
-  .pg[data-k="p8"].scene-play .polaroid,
-  .pg.wic.scene-play .tile-row .tile,
-  .pg[data-k="p9"].scene-play .tracker > .tbox,
-  .pg[data-k="pa"].scene-play .legend > li,
-  .pg[data-k="pb"].scene-play .legend > li,
-  .pg[data-k="p10"].scene-play .tl::before,
-  .pg[data-k="p10"].scene-play .tl > li,
-  .endpaper.scene-play .stamp {
+:root[data-motion="none"] .cover.scene-play .cover-title-line,
+:root[data-motion="none"] .cover.scene-play .cover-title-line::after,
+:root[data-motion="none"] .pg[data-k="p1"].scene-play .stk use[href="#s-bulb"],
+:root[data-motion="none"] .pg[data-k="p2"].scene-play .tile-row[data-tiles="51"] .tile,
+:root[data-motion="none"] .pg[data-k="p3"].scene-play .wall .note,
+:root[data-motion="none"] .pg[data-k="p4"].scene-play .buckets > .bk,
+:root[data-motion="none"] .pg[data-k="p7"].scene-play .qs > .q,
+:root[data-motion="none"] .titlepage.scene-play .nametags > .nametag,
+:root[data-motion="none"] .pg[data-k="p6"].scene-play .art,
+:root[data-motion="none"] .pg[data-k="p8"].scene-play .callout,
+:root[data-motion="none"] .pg[data-k="p8"].scene-play .polaroid,
+:root[data-motion="none"] .pg.wic.scene-play .tile-row .tile,
+:root[data-motion="none"] .pg[data-k="p9"].scene-play .tracker > .tbox,
+:root[data-motion="none"] .pg[data-k="pa"].scene-play .legend > li,
+:root[data-motion="none"] .pg[data-k="pb"].scene-play .legend > li,
+:root[data-motion="none"] .pg[data-k="p10"].scene-play .tl::before,
+:root[data-motion="none"] .pg[data-k="p10"].scene-play .tl > li,
+:root[data-motion="none"] .endpaper.scene-play .stamp {
     animation: none !important;
     opacity: 1;
     clip-path: none;
@@ -1652,7 +1651,8 @@ body {
     rotate: none;
     scale: 1;
   }
-}
+
+
 .cover-title .cover-title-line { margin-inline: auto; }
 
 /* A touch-led cylindrical fold, rendered above the resting page stack. */
@@ -1667,6 +1667,7 @@ body {
 }
 .book img, .single img { -webkit-user-drag: none; }
 .leaf { transition: none; }
+.leaf:not(.active) { visibility: hidden; }
 .leaf.active, .single { cursor: grab; }
 .stage.is-turning, .stage.is-turning * { cursor: grabbing; }
 .curl-source { visibility: hidden; }
@@ -1701,6 +1702,79 @@ body {
   background: var(--paper);
   background-image: repeating-linear-gradient(0deg, transparent 0 3px, rgba(111,87,57,.035) 3px 4px);
 }
-@media (prefers-reduced-motion: reduce) {
-  .book { transition: none; }
+.curl-cast-shadow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.curl-shadow-band {
+  position: absolute;
+  transform-origin: 0 0;
+  background: linear-gradient(90deg, transparent, rgba(46,32,22,.18) 45%, transparent);
+}
+:root[data-motion="full"] .stage.is-turning .pg *,
+:root[data-motion="full"] .stage.is-turning .pg *::before,
+:root[data-motion="full"] .stage.is-turning .pg *::after {
+  animation-play-state: paused !important;
+}
+
+/* Three motion levels stay within reach without covering the book. */
+.top { position: relative; padding-inline: 220px; }
+.motion-control {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid rgba(84,69,55,.2);
+  border-radius: 999px;
+  background: #faf7f0;
+}
+.top .motion-label { font-size: 11px; color: #6b6055; }
+.motion-options { display: flex; gap: 2px; }
+.motion-options button {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #66594f;
+  font: 500 12px "Mali", sans-serif;
+  cursor: pointer;
+}
+.motion-options button:hover { background: #eee7dc; }
+.motion-options button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.motion-options button[aria-pressed="true"] { background: #376d63; color: #fff; }
+.single .light-turn { will-change: transform, opacity; }
+.leaf.light-turn > .face {
+  transform-origin: left center;
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
+  will-change: transform;
+}
+@media (max-width: 900px) {
+  .top { padding: 48px 0 0; }
+  .single { width: min(100%, calc((100svh - 198px) * .74)); }
+  .book { width: min(100%, calc((100svh - 190px) * 1.8)); }
+}
+
+/* Off reveals final artwork and stops all animation. Full and Medium share page effects. */
+:root[data-motion="none"] .pg *,
+:root[data-motion="none"] .pg *::before,
+:root[data-motion="none"] .pg *::after {
+  animation: none !important;
+  transition: none !important;
+}
+:root[data-motion="none"] .cover-title .cover-title-line::after { display: none; }
+:root[data-motion="none"] .book { transition: none; }
+
+/* Keep these pauses stronger than mode-specific animation declarations. */
+:root[data-motion] .stage .leaf:not(.active) .pg.scene-play *,
+:root[data-motion] .stage .pg.scene-play.scene-pending *,
+:root[data-motion="full"] .stage.is-turning .pg.scene-play * {
+  animation-play-state: paused !important;
 }

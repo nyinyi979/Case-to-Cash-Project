@@ -24,7 +24,7 @@ async function until(check) {
     await sleep(30);
   }
 }
-async function reset(width) {
+async function reset(width, fullMotion = true) {
   frame.style.width = `${width}px`;
   frame.src = `/?curl-test=${Date.now()}`;
   await new Promise((resolve) => { frame.onload = resolve; });
@@ -36,6 +36,10 @@ async function reset(width) {
   const stage = doc.querySelector('#stage');
   stage.setPointerCapture = () => {};
   stage.hasPointerCapture = () => false;
+  if (fullMotion && doc.documentElement.dataset.motion !== 'full') {
+    doc.querySelector('[data-motion-option="full"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'full');
+  }
 }
 const state = () => doc.querySelector('#count').textContent;
 async function idle() {
@@ -68,7 +72,7 @@ async function drag({ backward = false, amount = .62, cancel = false, top = fals
   await until(() => doc.querySelector('.paper-curl'));
   await sleep(180);
   const panels = [...doc.querySelectorAll('.curl-panel')];
-  assert(panels.length === 14, 'Curved paper surface appears during the drag');
+  assert(panels.length >= 6 && panels.length <= 8, 'Curved paper uses at most eight surfaces');
   assert(panels.every((panel) => !panel.style.transform.includes('NaN') && !panel.style.clipPath.includes('NaN')), 'Fold geometry stays finite');
   held = { x: endX, y: endY };
   if (hold) return;
@@ -76,10 +80,33 @@ async function drag({ backward = false, amount = .62, cancel = false, top = fals
   await idle();
   assert(!doc.querySelector('.paper-curl, .curl-source'), 'Temporary curl surfaces are cleaned up');
 }
+async function checkMediumReveal(backward) {
+  const before = state();
+  const face = backward ? leftFace() : rightFace();
+  const leaf = face.closest('.leaf');
+  const arriving = leaf.querySelector(backward ? '.front' : '.back');
+  const bounds = face.getBoundingClientRect();
+  const x = backward ? bounds.left + 20 : bounds.right - 20;
+  const y = bounds.top + bounds.height * .5;
+  const endX = x + (backward ? 1 : -1) * bounds.width * 1.5;
+  pointer('pointerdown', face, x, y);
+  pointer('pointermove', doc.querySelector('#stage'), endX, y);
+  await until(() => leaf.classList.contains('light-turn') && arriving.getBoundingClientRect().width > bounds.width * .6);
+  const shown = arriving.getBoundingClientRect();
+  const hit = doc.elementFromPoint(shown.left + shown.width * .5, shown.top + shown.height * .5);
+  assert(hit?.closest('.face') === arriving,
+    `${backward ? 'Backward' : 'Forward'} turn shows the arriving face above the old page before release`);
+  assert(!arriving.querySelector('.pg').classList.contains('scene-pending'), 'Arriving page animation starts during the turn');
+  pointer('pointercancel', doc.querySelector('#stage'), endX, y);
+  await idle();
+  assert(state() === before, 'Cancelling a partial Medium turn restores the original spread');
+  assert(!leaf.querySelector('.face[style*="transform"]'), 'Cancelling restores both resting faces');
+}
 document.querySelector('#run').onclick = async () => {
   lock(true);
   output.textContent = 'Running…\n';
   errors = [];
+  const savedMotion = localStorage.getItem('c2c-motion');
   try {
     await reset(1100);
     assert(doc.querySelector('.book'), 'Desktop uses an open-book layout');
@@ -107,6 +134,10 @@ document.querySelector('#run').onclick = async () => {
     pointer('pointercancel', doc.querySelector('#stage'), held.x, held.y);
     await idle();
     assert(state() === firstSpread, 'Escape cancels a held page');
+    doc.querySelector('[data-motion-option="medium"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'medium');
+    await checkMediumReveal(false);
+    await checkMediumReveal(true);
     await reset(390);
     assert(doc.querySelector('.single'), 'Mobile uses a single-page layout');
     await drag({ top: true });
@@ -120,10 +151,55 @@ document.querySelector('#run').onclick = async () => {
     await idle();
     assert(state() !== 'ปก', 'A tap turns exactly one page');
     assert(doc.querySelectorAll('.single > .face').length === 1, 'Mobile leaves exactly one page mounted');
+    doc.querySelector('[data-motion-option="none"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'none');
+    assert(doc.querySelector('[data-motion-option="none"]').getAttribute('aria-pressed') === 'true', 'Motion toggle exposes its enabled state');
+    const beforeReducedTurn = state();
+    doc.querySelector('#next').click();
+    await until(() => state() !== beforeReducedTurn && !state().includes('กำลัง'));
+    assert(!doc.querySelector('.paper-curl'), 'Reduced motion turns without creating a curl');
+    assert(doc.querySelector('#stage').getAnimations({ subtree: true }).every((animation) => animation.playState !== 'running'), 'Reduced motion stops decorative animations');
+    await reset(390, false);
+    assert(doc.documentElement.dataset.motion === 'none', 'Motion preference survives a reload');
+    const toggleBounds = doc.querySelector('.motion-control').getBoundingClientRect();
+    assert(toggleBounds.right <= win.innerWidth && toggleBounds.top >= 0, 'Toggle fits in the top-right corner on mobile');
+    doc.querySelector('[data-motion-option="full"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'full');
+    const beforeToggle = state();
+    await drag({ hold: true });
+    doc.querySelector('[data-motion-option="none"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'none');
+    assert(!doc.querySelector('.paper-curl, .curl-source, .is-turning'), 'Changing motion mode cleans up a held page');
+    assert(state() === beforeToggle, 'Changing motion mode keeps the current page');
+    doc.querySelector('[data-motion-option="medium"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'medium');
+    const beforeMediumTurn = state();
+    doc.querySelector('#next').click();
+    await until(() => doc.querySelector('.light-turn'));
+    assert(!doc.querySelector('.paper-curl'), 'Medium animates one sheet without cloning artwork');
+    await idle();
+    assert(state() !== beforeMediumTurn, 'Medium still animates and completes the page turn');
+    assert(!doc.querySelector('.light-turn'), 'Medium clears its temporary animation styles');
+    const artworkAnimationSettings = () => [...doc.querySelectorAll('#stage .pg, #stage .pg *')].map((element) => {
+      const style = win.getComputedStyle(element);
+      return [style.animationName, style.animationDuration, style.animationDelay,
+        style.animationTimingFunction, style.animationIterationCount, style.animationPlayState];
+    });
+    const mediumAnimations = JSON.stringify(artworkAnimationSettings());
+    doc.querySelector('[data-motion-option="full"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'full');
+    assert(JSON.stringify(artworkAnimationSettings()) === mediumAnimations,
+      'Medium preserves exactly the same page animations and timing as Full');
+    doc.querySelector('[data-motion-option="medium"]').click();
+    await until(() => doc.documentElement.dataset.motion === 'medium');
     assert(errors.length === 0, `No browser errors (${errors.join(', ') || 'none'})`);
     report('ALL CHECKS PASSED');
   } catch (error) { report(`FAIL: ${error.message}`); }
-  finally { lock(false); }
+  finally {
+    if (savedMotion === null) localStorage.removeItem('c2c-motion');
+    else localStorage.setItem('c2c-motion', savedMotion);
+    lock(false);
+  }
 };
 document.querySelector('#preview').onclick = async () => {
   lock(true);

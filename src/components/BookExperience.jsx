@@ -6,10 +6,12 @@ import BookControls from './BookControls.jsx';
 import BookHeader from './BookHeader.jsx';
 import BookStage from './BookStage.jsx';
 import LoadingScreen from './LoadingScreen.jsx';
+import { useMotionPreference } from '../useMotionPreference.js';
 
 export default function BookExperience() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const motion = useMotionPreference();
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +37,7 @@ export default function BookExperience() {
   return (
     <>
       <main className="app-shell" aria-busy={!ready}>
-        <BookHeader />
+        <BookHeader motionMode={motion.mode} onSelectMotion={motion.select} />
         <BookStage symbolsMarkup={symbolsMarkup} />
         <BookControls />
         <div id="pages" aria-hidden="true" />
